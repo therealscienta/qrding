@@ -1,35 +1,65 @@
-<script>
+<script lang="ts">
 	import { Select } from 'bits-ui';
 	import { Button } from 'bits-ui';
 	import { Slider } from 'bits-ui';
 	import QRCode from 'qrcode';
+	import type { QRCodeErrorCorrectionLevel } from 'qrcode';
 	import TextForm from '$lib/qr_code_templates/TextForm.svelte';
 	import WifiForm from '$lib/qr_code_templates/WifiForm.svelte';
 	import VCardForm from '$lib/qr_code_templates/VCardForm.svelte';
 	import CalendarEventForm from '$lib/qr_code_templates/CalendarEventForm.svelte';
+	import UrlForm from '$lib/qr_code_templates/UrlForm.svelte';
+	import SmsForm from '$lib/qr_code_templates/SmsForm.svelte';
+	import PhoneForm from '$lib/qr_code_templates/PhoneForm.svelte';
+	import EmailForm from '$lib/qr_code_templates/EmailForm.svelte';
+	import GeoForm from '$lib/qr_code_templates/GeoForm.svelte';
+	import { emptyWifi, encodeWifi, wifiFilename } from '$lib/encoders/wifi';
+	import { emptyVCard, encodeVCard, vCardFilename } from '$lib/encoders/vcard';
+	import { emptyVEvent, encodeVEvent, vEventFilename } from '$lib/encoders/vevent';
+	import { emptyUrl, encodeUrl, urlFilename } from '$lib/encoders/url';
+	import { emptySms, encodeSms, smsFilename } from '$lib/encoders/sms';
+	import { emptyPhone, encodePhone, phoneFilename } from '$lib/encoders/phone';
+	import { emptyEmail, encodeEmail, emailFilename } from '$lib/encoders/email';
+	import { emptyGeo, encodeGeo, geoFilename } from '$lib/encoders/geo';
+	import { toFilenamePart } from '$lib/filename';
+	import { scanabilityWarning } from '$lib/color';
+	import { canvasSize, drawQrCode } from '$lib/render';
 
-	// Constants for canvas rendering
-	const CANVAS_QR_PADDING = 10; // Padding around the QR code graphic on the canvas
-	const CANVAS_TITLE_FONT_SIZE = 20; // Font size for the title
-	const CANVAS_TITLE_AREA_VERTICAL_PADDING = 5; // Vertical padding above and below the title text (each side)
-	const LOGO_MAX_PERCENTAGE_OF_QR = 0.25; // Logo max size relative to QR code (e.g., 0.25 = 25%)
-	const LOGO_BACKGROUND_PADDING = 4; // Padding around the logo for its background clearing box
+	type Mode = 'text' | 'url' | 'wifi' | 'vcard' | 'calendar' | 'sms' | 'phone' | 'email' | 'geo';
 
-	let selectedModeValue = $state('wifi');
+	const modeOptions: { value: Mode; label: string }[] = [
+		{ value: 'text', label: 'Text' },
+		{ value: 'url', label: 'Link (URL)' },
+		{ value: 'wifi', label: 'Wi-Fi Network' },
+		{ value: 'vcard', label: 'Contact Card (VCard)' },
+		{ value: 'calendar', label: 'Calendar Event' },
+		{ value: 'sms', label: 'SMS' },
+		{ value: 'phone', label: 'Phone Call' },
+		{ value: 'email', label: 'Email' },
+		{ value: 'geo', label: 'Location' }
+	];
+
+	let selectedModeValue = $state<Mode>('wifi');
 	let qrTitle = $state('');
-	let activeFormOutput = $state('');
-	let activeFilenameHint = $state('');
 
-	let qrCodeDataURL = $state('');
+	// Each template keeps its own fields, so switching templates doesn't lose input.
+	let text = $state('');
+	let wifi = $state(emptyWifi());
+	let vcard = $state(emptyVCard());
+	let vevent = $state(emptyVEvent());
+	let url = $state(emptyUrl());
+	let sms = $state(emptySms());
+	let phone = $state(emptyPhone());
+	let email = $state(emptyEmail());
+	let geo = $state(emptyGeo());
+
 	let size = $state(256); // This is the size of the QR code graphic itself
-	let isGenerating = $state(false);
-
 	let darkColor = $state('#000000');
 	let lightColor = $state('#ffffff');
 
 	// Error Correction Level
 	let errorCorrectionSliderValue = $state(1); // 0: L, 1: M, 2: Q, 3: H. Default to M (15%)
-	const errorCorrectionLevels = ['L', 'M', 'Q', 'H'];
+	const errorCorrectionLevels: QRCodeErrorCorrectionLevel[] = ['L', 'M', 'Q', 'H'];
 	const errorCorrectionLabels = ['L (7%)', 'M (15%)', 'Q (25%)', 'H (30%)'];
 
 	let errorCorrectionLevel = $derived(errorCorrectionLevels[errorCorrectionSliderValue]);
@@ -37,204 +67,159 @@
 		errorCorrectionLabels[errorCorrectionSliderValue]
 	);
 
-	// Logo
-	let logoFile = $state(null); // Will hold the File object
-	let logoDataURL = $state(''); // Will hold the base64 data URL for the logo
-	let logoInputRef = $state(null); // To reference the file input for clearing
+	// Logo: decoded once on upload, then reused for every render.
+	let logoBitmap = $state.raw<ImageBitmap | null>(null);
+	let logoPreviewURL = $state('');
+	let logoError = $state('');
+	let logoInputRef = $state<HTMLInputElement | null>(null);
+	let logoLoadId = 0; // Ignores a slow decode that finishes after a newer upload or a clear
 
-	const modeOptions = [
-		{ value: 'text', label: 'Text' },
-		{ value: 'wifi', label: 'Wi-Fi Network' },
-		{ value: 'vcard', label: 'Contact Card (VCard)' },
-		{ value: 'calendar', label: 'Calendar Event' }
-	];
+	let canvas = $state<HTMLCanvasElement | null>(null);
 
 	const currentModeLabel = $derived(
 		modeOptions.find((opt) => opt.value === selectedModeValue)?.label
 	);
 
-	// Derived values for UI display dimensions, reacting to `size` and `qrTitle`
-	let titleUiExtraHeight = $derived(
-		qrTitle.trim() ? CANVAS_TITLE_FONT_SIZE + CANVAS_TITLE_AREA_VERTICAL_PADDING * 2 : 0
-	);
-	// Width of the generated image (canvas)
-	let qrImageActualWidth = $derived(size + CANVAS_QR_PADDING * 2);
-	// Height of the generated image (canvas)
-	let qrImageActualHeight = $derived(size + CANVAS_QR_PADDING * 2 + titleUiExtraHeight);
+	const payload = $derived.by(() => {
+		switch (selectedModeValue) {
+			case 'text':
+				return text;
+			case 'wifi':
+				return encodeWifi(wifi);
+			case 'vcard':
+				return encodeVCard(vcard);
+			case 'calendar':
+				return encodeVEvent(vevent);
+			case 'url':
+				return encodeUrl(url);
+			case 'sms':
+				return encodeSms(sms);
+			case 'phone':
+				return encodePhone(phone);
+			case 'email':
+				return encodeEmail(email);
+			case 'geo':
+				return encodeGeo(geo);
+		}
+	});
+
+	const filenameHint = $derived.by(() => {
+		switch (selectedModeValue) {
+			case 'text':
+				return 'custom-text';
+			case 'wifi':
+				return wifiFilename(wifi);
+			case 'vcard':
+				return vCardFilename(vcard);
+			case 'calendar':
+				return vEventFilename(vevent);
+			case 'url':
+				return urlFilename(url);
+			case 'sms':
+				return smsFilename(sms);
+			case 'phone':
+				return phoneFilename(phone);
+			case 'email':
+				return emailFilename(email);
+			case 'geo':
+				return geoFilename(geo);
+		}
+	});
+
+	// QRCode.create is synchronous and throws when the payload doesn't fit in a QR code.
+	const qr = $derived.by(() => {
+		if (!payload.trim()) return { code: null, error: '' };
+		try {
+			return { code: QRCode.create(payload, { errorCorrectionLevel }), error: '' };
+		} catch (error) {
+			return { code: null, error: error instanceof Error ? error.message : String(error) };
+		}
+	});
+
+	const colorWarning = $derived(scanabilityWarning(darkColor, lightColor));
+	const logoNeedsHigherCorrection = $derived(logoBitmap !== null && errorCorrectionSliderValue < 2);
+
+	// Display size of the preview, matching the canvas drawn by drawQrCode.
+	const imageSize = $derived(canvasSize(size, Boolean(qrTitle.trim())));
+
+	$effect(() => {
+		if (!canvas || !qr.code) return;
+		drawQrCode(canvas, {
+			qr: qr.code,
+			size,
+			title: qrTitle,
+			dark: darkColor,
+			light: lightColor,
+			logo: logoBitmap
+		});
+	});
 
 	function downloadQRCode() {
-		if (!qrCodeDataURL) return;
+		if (!canvas || !qr.code) return;
 
-		const link = document.createElement('a');
-		const timestamp = Date.now();
-		let baseFilename = 'qrcode';
+		const baseFilename = toFilenamePart(qrTitle) || toFilenamePart(filenameHint) || 'qrcode';
+		const filename = `${baseFilename}-${size}-${errorCorrectionLevel}${logoBitmap ? '-logo' : ''}-${Date.now()}.png`;
 
-		const titleTrimmed = qrTitle.trim();
-		if (titleTrimmed) {
-			baseFilename = titleTrimmed.replace(/[^-\w\s]/g, '').replace(/\s+/g, '_');
-		} else if (activeFilenameHint) {
-			baseFilename = activeFilenameHint.replace(/[^-\w\s]/g, '').replace(/\s+/g, '_');
-		}
-
-		link.download = `${baseFilename}-${size}-${errorCorrectionLevel}${logoFile ? '-logo' : ''}-${timestamp}.png`;
-		link.href = qrCodeDataURL;
-		link.click();
+		// The PNG is only encoded here, not on every change.
+		canvas.toBlob((blob) => {
+			if (!blob) return;
+			const url = URL.createObjectURL(blob);
+			const link = document.createElement('a');
+			link.download = filename;
+			link.href = url;
+			link.click();
+			setTimeout(() => URL.revokeObjectURL(url), 0);
+		}, 'image/png');
 	}
 
-	function handleLogoUpload(event) {
-		const file = event.target.files[0];
-		if (file) {
-			logoFile = file;
-			const reader = new FileReader();
-			reader.onload = (e) => {
-				logoDataURL = e.target.result;
-			};
-			reader.readAsDataURL(file);
-		} else {
-			logoFile = null;
-			logoDataURL = '';
+	function setLogo(bitmap: ImageBitmap | null, previewURL: string) {
+		logoBitmap?.close();
+		if (logoPreviewURL) URL.revokeObjectURL(logoPreviewURL);
+		logoBitmap = bitmap;
+		logoPreviewURL = previewURL;
+	}
+
+	async function handleLogoUpload(event: Event & { currentTarget: HTMLInputElement }) {
+		const file = event.currentTarget.files?.[0];
+		const loadId = ++logoLoadId;
+		logoError = '';
+		if (!file) {
+			setLogo(null, '');
+			return;
+		}
+		try {
+			const bitmap = await createImageBitmap(file);
+			if (loadId !== logoLoadId) {
+				bitmap.close();
+				return;
+			}
+			setLogo(bitmap, URL.createObjectURL(file));
+			// A logo covers modules in the middle of the code; L/M often can't recover from that.
+			if (errorCorrectionSliderValue < 3) errorCorrectionSliderValue = 3;
+		} catch {
+			if (loadId !== logoLoadId) return;
+			setLogo(null, '');
+			logoError = 'Could not read that image.';
 		}
 	}
 
 	function clearLogo() {
-		logoFile = null;
-		logoDataURL = '';
+		logoLoadId++;
+		logoError = '';
+		setLogo(null, '');
 		if (logoInputRef) {
 			logoInputRef.value = ''; // Clear the file input
 		}
 	}
-
-	$effect(() => {
-		const capturedSize = size;
-		const capturedErrorCorrectionLevel = errorCorrectionLevel;
-		const textToEncode = activeFormOutput;
-		const capturedQrTitle = qrTitle;
-		const capturedDarkColor = darkColor;
-		const capturedLightColor = lightColor;
-		const capturedLogoDataURL = logoDataURL; // Capture logo data URL
-
-		(async () => {
-			if (!textToEncode.trim()) {
-				qrCodeDataURL = '';
-				return;
-			}
-
-			isGenerating = true;
-			try {
-				const qrOptions = {
-					width: capturedSize,
-					margin: 0, // We handle padding on the canvas
-					color: {
-						dark: capturedDarkColor,
-						light: '#00000000' // Transparent light color for QR, canvas bg will be lightColor
-					},
-					errorCorrectionLevel: capturedErrorCorrectionLevel
-				};
-				const rawQrDataUrl = await QRCode.toDataURL(textToEncode, qrOptions);
-
-				await new Promise((resolve, reject) => {
-					const qrImg = new Image();
-					qrImg.onload = () => {
-						const canvas = document.createElement('canvas');
-						const ctx = canvas.getContext('2d');
-						const titleText = capturedQrTitle.trim();
-						const titleAreaHeightOnCanvas = titleText
-							? CANVAS_TITLE_FONT_SIZE + CANVAS_TITLE_AREA_VERTICAL_PADDING * 2
-							: 0;
-
-						canvas.width = capturedSize + CANVAS_QR_PADDING * 2;
-						canvas.height = capturedSize + CANVAS_QR_PADDING * 2 + titleAreaHeightOnCanvas;
-
-						// Fill canvas background
-						ctx.fillStyle = capturedLightColor;
-						ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-						// QR code Y position on canvas (accounts for title area)
-						const qrYOnCanvas = CANVAS_QR_PADDING + titleAreaHeightOnCanvas;
-
-						// Draw QR code image
-						ctx.drawImage(qrImg, CANVAS_QR_PADDING, qrYOnCanvas, capturedSize, capturedSize);
-
-						// Draw title if provided
-						if (titleText) {
-							ctx.fillStyle = capturedDarkColor;
-							ctx.font = `${CANVAS_TITLE_FONT_SIZE}px Arial`;
-							ctx.textAlign = 'center';
-							ctx.textBaseline = 'top';
-							ctx.fillText(titleText, canvas.width / 2, CANVAS_TITLE_AREA_VERTICAL_PADDING);
-						}
-
-						// If logo is present, draw it
-						if (capturedLogoDataURL) {
-							const logoImg = new Image();
-							logoImg.onload = () => {
-								const maxLogoDim = capturedSize * LOGO_MAX_PERCENTAGE_OF_QR;
-								let logoWidth = logoImg.width;
-								let logoHeight = logoImg.height;
-
-								// Scale logo to fit within max dimensions while maintaining aspect ratio
-								if (logoWidth > maxLogoDim || logoHeight > maxLogoDim) {
-									if (logoWidth > logoHeight) {
-										logoHeight = (logoHeight / logoWidth) * maxLogoDim;
-										logoWidth = maxLogoDim;
-									} else {
-										logoWidth = (logoWidth / logoHeight) * maxLogoDim;
-										logoHeight = maxLogoDim;
-									}
-								}
-
-								// Calculate positions for logo and its background
-								// The logo should be centered on the QR code itself, not the whole canvas.
-								const qrCenterX = CANVAS_QR_PADDING + capturedSize / 2;
-								const qrCenterY = qrYOnCanvas + capturedSize / 2;
-
-								const logoBgWidth = logoWidth + LOGO_BACKGROUND_PADDING * 2;
-								const logoBgHeight = logoHeight + LOGO_BACKGROUND_PADDING * 2;
-								const logoBgX = qrCenterX - logoBgWidth / 2;
-								const logoBgY = qrCenterY - logoBgHeight / 2;
-
-								const logoX = qrCenterX - logoWidth / 2;
-								const logoY = qrCenterY - logoHeight / 2;
-
-								// Draw a clearing rectangle (background for logo)
-								ctx.fillStyle = capturedLightColor; // Use light color for the clearing area
-								ctx.fillRect(logoBgX, logoBgY, logoBgWidth, logoBgHeight);
-
-								// Draw the logo
-								ctx.drawImage(logoImg, logoX, logoY, logoWidth, logoHeight);
-
-								qrCodeDataURL = canvas.toDataURL('image/png');
-								resolve();
-							};
-							logoImg.onerror = (errEvent) => {
-								console.error('Error loading logo image:', errEvent);
-								// Proceed without logo if it fails to load
-								qrCodeDataURL = canvas.toDataURL('image/png');
-								resolve();
-							};
-							logoImg.src = capturedLogoDataURL;
-						} else {
-							// No logo, resolve immediately after QR & title
-							qrCodeDataURL = canvas.toDataURL('image/png');
-							resolve();
-						}
-					};
-					qrImg.onerror = (errEvent) => {
-						console.error('Error loading QR code image for canvas drawing:', errEvent);
-						qrCodeDataURL = '';
-						reject(new Error('Failed to load QR image onto canvas.'));
-					};
-					qrImg.src = rawQrDataUrl;
-				});
-			} catch (error) {
-				console.error('Error in QR generation pipeline:', error);
-				qrCodeDataURL = '';
-			} finally {
-				isGenerating = false;
-			}
-		})();
-	});
 </script>
+
+<svelte:head>
+	<title>QRding – QR code generator</title>
+	<meta
+		name="description"
+		content="Generate QR codes for Wi-Fi credentials, contact cards, calendar events and text, right in your browser."
+	/>
+</svelte:head>
 
 <div class="flex min-h-screen items-center justify-center bg-gray-900 p-4 md:p-6 lg:p-8">
 	<div class="fixed top-0 left-0 bg-gray-900 p-4 font-[Megrim] text-4xl text-blue-400">QRding</div>
@@ -268,14 +253,12 @@
 								sideOffset={10}
 							>
 								<Select.Viewport class="p-1">
-									{#each modeOptions as option}
+									{#each modeOptions as option (option.value)}
 										<Select.Item
 											value={option.value}
 											class="cursor-pointer rounded px-4 py-2 text-sm hover:bg-gray-100 data-[highlighted]:bg-gray-800"
 										>
-											{#snippet children({ selected })}
-												{option.label}
-											{/snippet}
+											{option.label}
 										</Select.Item>
 									{/each}
 								</Select.Viewport>
@@ -300,31 +283,29 @@
 
 				<!-- Input Fields based on Mode -->
 				{#if selectedModeValue === 'wifi'}
-					<WifiForm
-						bind:generatedString={activeFormOutput}
-						bind:filenameHint={activeFilenameHint}
-					/>
+					<WifiForm bind:fields={wifi} />
 				{:else if selectedModeValue === 'text'}
-					<TextForm
-						bind:generatedString={activeFormOutput}
-						bind:filenameHint={activeFilenameHint}
-					/>
+					<TextForm bind:text />
 				{:else if selectedModeValue === 'vcard'}
-					<VCardForm
-						bind:generatedString={activeFormOutput}
-						bind:filenameHint={activeFilenameHint}
-					/>
+					<VCardForm bind:fields={vcard} />
 				{:else if selectedModeValue === 'calendar'}
-					<CalendarEventForm
-						bind:generatedString={activeFormOutput}
-						bind:filenameHint={activeFilenameHint}
-					/>
+					<CalendarEventForm bind:fields={vevent} />
+				{:else if selectedModeValue === 'url'}
+					<UrlForm bind:fields={url} />
+				{:else if selectedModeValue === 'sms'}
+					<SmsForm bind:fields={sms} />
+				{:else if selectedModeValue === 'phone'}
+					<PhoneForm bind:fields={phone} />
+				{:else if selectedModeValue === 'email'}
+					<EmailForm bind:fields={email} />
+				{:else if selectedModeValue === 'geo'}
+					<GeoForm bind:fields={geo} />
 				{/if}
 
 				<!-- Size Slider -->
 				<div class="space-y-3">
 					<div class="flex items-center justify-between">
-						<label class="text-sm font-medium text-blue-600">QR Size</label>
+						<span id="sizeLabel" class="text-sm font-medium text-blue-600">QR Size</span>
 						<span class="text-sm font-medium text-blue-400">{size}px</span>
 					</div>
 					<Slider.Root
@@ -342,6 +323,7 @@
 						</span>
 						<Slider.Thumb
 							index={0}
+							aria-labelledby="sizeLabel"
 							class="block h-4 w-4 cursor-pointer rounded-full border-2 border-black bg-white shadow-sm transition-shadow hover:shadow-md focus:ring-2 focus:ring-black focus:ring-offset-2 focus:outline-none"
 						/>
 					</Slider.Root>
@@ -350,7 +332,9 @@
 				<!-- Error Correction Level Slider -->
 				<div class="space-y-3">
 					<div class="flex items-center justify-between">
-						<label class="text-sm font-medium text-blue-600">Error Correction</label>
+						<span id="errorCorrectionLabel" class="text-sm font-medium text-blue-600"
+							>Error Correction</span
+						>
 						<span class="text-sm font-medium text-blue-400"
 							>{currentErrorCorrectionDisplayLabel}</span
 						>
@@ -370,25 +354,37 @@
 						</span>
 						<Slider.Thumb
 							index={0}
+							aria-labelledby="errorCorrectionLabel"
 							class="block h-4 w-4 cursor-pointer rounded-full border-2 border-black bg-white shadow-sm transition-shadow hover:shadow-md focus:ring-2 focus:ring-black focus:ring-offset-2 focus:outline-none"
 						/>
 					</Slider.Root>
+					{#if logoNeedsHigherCorrection}
+						<p class="text-xs text-yellow-400">
+							With a logo, use Q or H. Lower levels may make the code unscannable.
+						</p>
+					{/if}
 				</div>
 
 				<!-- Logo Upload -->
 				<div class="space-y-3">
-					<label class="mb-2 block text-sm font-medium text-blue-500">Logo (Optional)</label>
+					<label for="logoInput" class="mb-2 block text-sm font-medium text-blue-500"
+						>Logo (Optional)</label
+					>
 					<input
+						id="logoInput"
 						bind:this={logoInputRef}
 						type="file"
 						accept="image/*"
-						on:change={handleLogoUpload}
+						onchange={handleLogoUpload}
 						class="block w-full text-sm text-gray-400 file:mr-4 file:rounded-md file:border-0 file:bg-blue-600 file:px-4 file:py-2 file:text-sm file:font-semibold file:text-white hover:file:bg-blue-700"
 					/>
-					{#if logoDataURL}
+					{#if logoError}
+						<p class="text-xs text-red-400">{logoError}</p>
+					{/if}
+					{#if logoPreviewURL}
 						<div class="mt-2 flex items-center gap-2">
 							<img
-								src={logoDataURL}
+								src={logoPreviewURL}
 								alt="Logo preview"
 								class="h-10 w-10 rounded border border-gray-600 object-contain"
 							/>
@@ -406,55 +402,54 @@
 			<div
 				class="mx-auto flex w-full max-w-[584px] flex-col items-center justify-center space-y-6 lg:w-auto lg:flex-none"
 			>
-				<!-- QR Code Display Area: Loading, Image, or Placeholder -->
-				{#if isGenerating}
-					<div
-						class="mx-auto flex items-center justify-center rounded-lg border border-gray-500 p-4"
-						style="width: {qrImageActualWidth + 32}px; height: {qrImageActualHeight + 32}px;"
-					>
-						<div
-							class="h-8 w-8 animate-spin rounded-full border-2 border-gray-300 border-t-blue-500"
-						></div>
-					</div>
-				{:else if qrCodeDataURL}
-					<div
-						class="mx-auto rounded-lg border border-gray-600 bg-gray-800 p-4 shadow-lg"
-						style="width: {qrImageActualWidth + 32}px; height: {qrImageActualHeight + 32}px;"
-					>
-						<img
-							src={qrCodeDataURL}
-							alt="Generated QR Code{qrTitle.trim()
-								? ' with title: ' + qrTitle.trim()
-								: ''}{logoFile ? ' and logo' : ''}"
-							class="block"
-							style="width: {qrImageActualWidth}px; height: {qrImageActualHeight}px;"
-						/>
-					</div>
-				{:else}
+				<!-- QR Code Display Area: the canvas is the preview and the download source -->
+				<div
+					class="mx-auto rounded-lg border border-gray-600 bg-gray-800 p-4 shadow-lg"
+					class:hidden={!qr.code}
+					role="img"
+					aria-label="Generated QR Code{qrTitle.trim()
+						? ' with title: ' + qrTitle.trim()
+						: ''}{logoBitmap ? ' and logo' : ''}"
+					style="width: {imageSize.width + 32}px; height: {imageSize.height + 32}px;"
+				>
+					<canvas
+						bind:this={canvas}
+						class="block"
+						style="width: {imageSize.width}px; height: {imageSize.height}px;"
+					></canvas>
+				</div>
+				{#if !qr.code}
 					<div
 						class="mx-auto flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-700 p-4 text-center"
-						style="width: {qrImageActualWidth + 32}px; height: {qrImageActualHeight + 32}px;"
+						style="width: {imageSize.width + 32}px; height: {imageSize.height + 32}px;"
 					>
-						<svg
-							class="mb-2 h-12 w-12 text-gray-600"
-							fill="none"
-							viewBox="0 0 24 24"
-							stroke="currentColor"
-							stroke-width="1"
-						>
-							<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
-							<path stroke-linecap="round" stroke-linejoin="round" d="M7 7h10v10H7z" />
-						</svg>
-						<p class="text-sm text-gray-500">QR code will appear here</p>
-						<p class="text-xs text-gray-600">Configure options to generate</p>
+						{#if qr.error}
+							<p class="text-sm text-red-400">Can't create a QR code: {qr.error}</p>
+							<p class="text-xs text-gray-600">
+								Shorten the content or lower the error correction.
+							</p>
+						{:else}
+							<svg
+								class="mb-2 h-12 w-12 text-gray-600"
+								fill="none"
+								viewBox="0 0 24 24"
+								stroke="currentColor"
+								stroke-width="1"
+							>
+								<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
+								<path stroke-linecap="round" stroke-linejoin="round" d="M7 7h10v10H7z" />
+							</svg>
+							<p class="text-sm text-gray-500">QR code will appear here</p>
+							<p class="text-xs text-gray-600">Configure options to generate</p>
+						{/if}
 					</div>
 				{/if}
 
 				<!-- Color Pickers and Download Button (only if QR code is visible) -->
-				{#if qrCodeDataURL && !isGenerating}
+				{#if qr.code}
 					<div
 						class="qr-color-inputs flex flex-wrap items-center justify-center gap-4"
-						style="max-width: {qrImageActualWidth + 32}px;"
+						style="max-width: {imageSize.width + 32}px;"
 					>
 						<label class="flex items-center text-sm text-blue-500">
 							<span class="mr-2">Dark Color:</span>
@@ -473,6 +468,9 @@
 							/>
 						</label>
 					</div>
+					{#if colorWarning}
+						<p class="max-w-xs text-center text-xs text-yellow-400">{colorWarning}</p>
+					{/if}
 
 					<Button.Root
 						onclick={downloadQRCode}

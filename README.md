@@ -1,17 +1,17 @@
 # QRding
 
-QRding is a simple self-hosted QR code generator. It includes templates for creating QR codes for sharing WiFi credentials, contact cards and text or links. In the long-term the goal is to build an automation system around QR codes which allows you to trigger custom actions, track actions or habits and send notifications when a scan event is not triggered.
+QRding is a simple self-hosted QR code generator. It includes templates for creating QR codes for sharing WiFi credentials, contact cards, calendar events, links, SMS, phone numbers, email and map locations. In the long-term the goal is to build an automation system around QR codes which allows you to trigger custom actions, track actions or habits and send notifications when a scan event is not triggered.
 
 ## Features
 
-* QR code for sharing WiFi credentials
-* QR code for sharing contact cards
-* QR code for adding events to calendars
-* QR code for generic link sharing and text
-* Customize size of QR code image
-* Customize color of QR codes
-* Embed logo on to QR code
-* Adjustable error correction rate
+- QR code for sharing WiFi credentials
+- QR code for sharing contact cards
+- QR code for adding events to calendars
+- QR code for links (URL), plain text, SMS, phone calls, email and map locations
+- Customize size of QR code image
+- Customize color of QR codes
+- Embed logo on to QR code
+- Adjustable error correction rate
 
 ### Screenshots and Demo
 
@@ -25,9 +25,7 @@ A live version is available at https://qrding.app
 
 QRding is available as a docker image and can be deployed with the docker-compose provided below.
 
-````compose
-version: '3.8'
-
+```compose
 services:
   qrding:
     image: ghcr.io/rishikanthc/qrding:latest
@@ -35,7 +33,7 @@ services:
     ports:
       - "3000:3000"
     restart: unless-stopped
-````
+```
 
 ## Cool ideas for using QR codes
 
@@ -62,16 +60,16 @@ I highly recommend getting a label maker to print out QR codes and stick them on
 
 # Roadmap for potential advanced use cases
 
-* Save and browse generated QR codes
-* Automations via webhooks and integration with other apps like Home Assistant, Ntfy, discord.
-  * Track events/habits and trigger notifications - For eg. QR code stuck on medicine cabinet. Scan everytime you take meds. If the code hasn’t been scanned before a pre-set deadline, send a reminder/notification.
-  * Trigger specific evens when code is scanned
-    * **Smart Home Scene Triggers**: Place QR stickers around the house. Scanning the “Movie Night” code dims lights, closes blinds, and fires up the home theater. Scan “Good Morning” in your bedroom to raise shades, start the coffee maker, and read you the day’s weather.
-    * **Equipment & Tool Checkout**: In a makerspace or home workshop, each tool has its own QR. Scanning when you borrow it logs you as the current user. If you haven’t returned (i.e. scanned it back) within your allotted time, an automated reminder pings you.
-    * **Plant & Pet Care Scheduling**: QR on each plant’s pot or pet’s food bin: scan to log watering or feeding. If no scan happens after the plant’s ideal watering interval (e.g. 7 days) or pet’s mealtime window, your smart home assistant reminds you.
-    * **On-Demand How-To Guides**: Affix QR codes on appliances or furniture. Scanning the code launches the PDF manual.
-    * **Vehicle & Machinery Maintenance Logs**: Under the hood or on factory equipment: scan QR to instantly log an oil change, safety inspection, or filter replacement. The system then auto-schedules the next service reminder based on mileage or hours run.
-    * **Inventory management**: QR codes on pantry items connect to your home-inventory app. Scanning the last bag of flour or coffee bean container logs the “out-of-stock” event.
+- Save and browse generated QR codes
+- Automations via webhooks and integration with other apps like Home Assistant, Ntfy, discord.
+  - Track events/habits and trigger notifications - For eg. QR code stuck on medicine cabinet. Scan everytime you take meds. If the code hasn’t been scanned before a pre-set deadline, send a reminder/notification.
+  - Trigger specific evens when code is scanned
+    - **Smart Home Scene Triggers**: Place QR stickers around the house. Scanning the “Movie Night” code dims lights, closes blinds, and fires up the home theater. Scan “Good Morning” in your bedroom to raise shades, start the coffee maker, and read you the day’s weather.
+    - **Equipment & Tool Checkout**: In a makerspace or home workshop, each tool has its own QR. Scanning when you borrow it logs you as the current user. If you haven’t returned (i.e. scanned it back) within your allotted time, an automated reminder pings you.
+    - **Plant & Pet Care Scheduling**: QR on each plant’s pot or pet’s food bin: scan to log watering or feeding. If no scan happens after the plant’s ideal watering interval (e.g. 7 days) or pet’s mealtime window, your smart home assistant reminds you.
+    - **On-Demand How-To Guides**: Affix QR codes on appliances or furniture. Scanning the code launches the PDF manual.
+    - **Vehicle & Machinery Maintenance Logs**: Under the hood or on factory equipment: scan QR to instantly log an oil change, safety inspection, or filter replacement. The system then auto-schedules the next service reminder based on mileage or hours run.
+    - **Inventory management**: QR codes on pantry items connect to your home-inventory app. Scanning the last bag of flour or coffee bean container logs the “out-of-stock” event.
 
 # Contributing
 
@@ -89,4 +87,3 @@ Please follow these steps to contribute to development:
 # License
 
 This project is licensed under the MIT License. See LICENSE for details.
-

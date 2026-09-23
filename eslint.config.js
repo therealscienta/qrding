@@ -31,6 +31,9 @@ export default ts.config(
 				parser: ts.parser,
 				svelteConfig
 			}
-		}
+		},
+		// Flags `let { x = $bindable() } = $props()` when x is only written later, which is how
+		// bound props are meant to be used.
+		rules: { 'no-useless-assignment': 'off' }
 	}
 );
