@@ -12,6 +12,9 @@ QRding is a simple self-hosted QR code generator. It includes templates for crea
 - Customize color of QR codes
 - Embed logo on to QR code
 - Adjustable error correction rate
+- Download as PNG (1×–8×, tagged 300 DPI for print) or SVG (vector), or copy to the clipboard
+- Batch mode: generate many codes from a CSV and download them as a ZIP or print them on one sheet
+- Built-in scan check that reads every generated code back before you use it
 
 ### Screenshots and Demo
 

@@ -64,3 +64,8 @@
 	--color-purple-800: oklch(33% 38% 298deg);
 	--color-purple-900: oklch(23% 20% 300deg);
 }
+
+/* Batch print sheet (see +page.svelte): the only thing that prints. */
+@page {
+	margin: 10mm;
+}

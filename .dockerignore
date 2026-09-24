@@ -7,3 +7,5 @@ build
 screenshots
 Dockerfile
 docker-compose.yaml
+test-results
+playwright-report
