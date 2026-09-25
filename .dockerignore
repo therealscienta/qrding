@@ -9,3 +9,4 @@ Dockerfile
 docker-compose.yaml
 test-results
 playwright-report
+src-tauri

@@ -6,7 +6,7 @@ Not planned: features that store information, such as remembering settings or in
 
 ## Bugs
 
-- [x] **1. The preview is too wide for phones.** Fixed: the preview and placeholder boxes now use `width: 100%; max-width: {imageSize.width + 32}px; aspect-ratio: ...` instead of a fixed inline pixel width, and the canvas uses `width: 100%; height: auto` (its intrinsic ratio, from the `canvas.width`/`height` attributes `drawQrCode` sets, does the rest). Exports are unaffected since they render to a separate offscreen canvas. Regression test: `tests/app.spec.ts` › "the preview fits a 390px-wide phone even at the largest image size".
+- [x] **1. The preview is too wide for phones.** Fixed: the preview and placeholder boxes use `width: 100%` with a `max-width` and `aspect-ratio` from `previewBox` (image size + padding + border) instead of a fixed pixel width, and the canvas is `max-w-full h-auto`: shown 1:1 when there's room, scaled down only on narrow screens. Exports are unaffected since they render to a separate offscreen canvas. Regression tests in `tests/app.spec.ts`: "the preview fits a 390px-wide phone…" and "the preview shows the canvas 1:1 when there is room…".
 - [x] **2. Some text is hard to read.** Fixed: `text-gray-600`/`text-gray-500` → `text-gray-400`, `text-blue-600` → `text-blue-500` (both already used elsewhere for the same role — e.g. every other form label was already `text-blue-500`; the flagged spots were the inconsistent ones). The "QRding" logo is now the page's `<h1>`. Added `@axe-core/playwright` with a WCAG 2 A/AA check in `tests/a11y.spec.ts`, run against both the placeholder and a rendered code.
 
 ## Features

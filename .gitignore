@@ -9,8 +9,9 @@ node_modules
 /build
 
 # Tauri (also ignored by src-tauri/.gitignore; listed here too so tools that only
-# read the root .gitignore, like eslint's includeIgnoreFile, skip it as well)
+# read the root .gitignore, like eslint's includeIgnoreFile and prettier, skip them as well)
 /src-tauri/target
+/src-tauri/gen
 
 # OS
 .DS_Store

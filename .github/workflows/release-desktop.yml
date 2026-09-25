@@ -12,8 +12,16 @@ on:
 permissions:
   contents: write
 
+# A newer push supersedes an in-flight build. Without this, an older run that finishes last
+# would replace the newer "latest" release with an older build.
+concurrency:
+  group: release-desktop
+  cancel-in-progress: true
+
 jobs:
   build:
+    # Manual runs from other branches would otherwise publish over "latest main build".
+    if: github.ref == 'refs/heads/main'
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v7

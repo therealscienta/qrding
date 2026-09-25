@@ -2,8 +2,8 @@
 name = "qrding"
 version = "0.0.1"
 description = "QRding desktop app"
-license = ""
-repository = "https://github.com/rishikanthc/qrding"
+license = "MIT"
+repository = "https://github.com/therealscienta/qrding"
 edition = "2021"
 rust-version = "1.77.2"
 

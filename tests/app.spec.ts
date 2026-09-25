@@ -138,6 +138,20 @@ test('the preview fits a 390px-wide phone even at the largest image size', async
 	expect(overflowsHorizontally).toBe(false);
 });
 
+test('the preview shows the canvas 1:1 when there is room, so modules stay sharp', async ({
+	page
+}) => {
+	await page.fill('#qrTitle', 'Guest');
+	await page.fill('#wifiSSID', 'Home');
+	await decodedPayload(page);
+	const size = await page.evaluate(() => {
+		const canvas = document.querySelector('canvas')!;
+		const { width, height } = canvas.getBoundingClientRect();
+		return { intrinsic: [canvas.width, canvas.height], displayed: [width, height] };
+	});
+	expect(size.displayed).toEqual(size.intrinsic);
+});
+
 test('color picker stays mounted while changing color, and warns on inverted colors', async ({
 	page
 }) => {

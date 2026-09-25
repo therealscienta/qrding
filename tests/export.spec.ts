@@ -63,9 +63,8 @@ test('logos are embedded in PNG and SVG exports, including SVG logos', async ({ 
 	expect((await decodeImage(page, svgBytes, 'image/svg+xml', 2)).payload).toBe(WIFI);
 });
 
-test('export shows a confirmation so a silent, already-finished download is not mistaken for a no-op', async ({
-	page
-}) => {
+// Desktop (WebView2) saves downloads without any UI, so this message is the only feedback there.
+test('export confirms which file was saved', async ({ page }) => {
 	const [download] = await Promise.all([
 		page.waitForEvent('download'),
 		page.getByRole('button', { name: 'Export PNG' }).click()

@@ -131,6 +131,8 @@
 	const imageSize = $derived(
 		canvasLayout(size, preview.code?.modules.size ?? 21, Boolean(preview.title.trim()))
 	);
+	// The box around it: p-4 padding plus a 1px border on each side, so the canvas fits 1:1.
+	const previewBox = $derived({ width: imageSize.width + 34, height: imageSize.height + 34 });
 
 	const pngScaleOptions = $derived(
 		PNG_SCALES.map((scale) => ({
@@ -561,16 +563,15 @@
 					aria-label="Generated QR Code{preview.title.trim()
 						? ' with title: ' + preview.title.trim()
 						: ''}{logo ? ' and logo' : ''}"
-					style="width: 100%; max-width: {imageSize.width + 32}px; aspect-ratio: {imageSize.width +
-						32} / {imageSize.height + 32};"
+					style="width: 100%; max-width: {previewBox.width}px; aspect-ratio: {previewBox.width} / {previewBox.height};"
 				>
-					<canvas bind:this={canvas} class="block" style="width: 100%; height: auto;"></canvas>
+					<!-- Natural size when there's room (sharp, 1:1); scaled down only on narrow screens. -->
+					<canvas bind:this={canvas} class="mx-auto block h-auto max-w-full"></canvas>
 				</div>
 				{#if !preview.code}
 					<div
 						class="mx-auto flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-700 p-4 text-center"
-						style="width: 100%; max-width: {imageSize.width +
-							32}px; aspect-ratio: {imageSize.width + 32} / {imageSize.height + 32};"
+						style="width: 100%; max-width: {previewBox.width}px; aspect-ratio: {previewBox.width} / {previewBox.height};"
 					>
 						{#if preview.error}
 							<p class="text-sm text-red-400">Can't create a QR code: {preview.error}</p>
@@ -604,7 +605,7 @@
 				{#if preview.code}
 					<div
 						class="qr-color-inputs flex flex-wrap items-center justify-center gap-4"
-						style="max-width: {imageSize.width + 32}px;"
+						style="max-width: {previewBox.width}px;"
 					>
 						<label class="flex items-center text-sm text-blue-500">
 							<span class="mr-2">Dark Color:</span>
