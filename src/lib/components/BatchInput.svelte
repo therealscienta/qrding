@@ -51,7 +51,7 @@
 		onclick={onDownloadTemplate}
 		class="text-xs text-blue-400 underline hover:text-blue-300"
 	>
-		Download CSV template
+		Export CSV template
 	</button>
 	<div>
 		<label for="csvFile" class="mb-2 block text-sm font-medium text-blue-500">CSV file</label>

@@ -72,8 +72,8 @@
 	let pngScale = $state(1);
 	const PNG_SCALES = [1, 2, 4, 8];
 	let canCopy = $state(false);
-	let copyStatus = $state<{ ok: boolean; message: string } | null>(null);
-	let copyStatusTimer: ReturnType<typeof setTimeout> | undefined;
+	let actionStatus = $state<{ ok: boolean; message: string } | null>(null);
+	let actionStatusTimer: ReturnType<typeof setTimeout> | undefined;
 
 	// Batch
 	let printWidthMm = $state(30);
@@ -193,33 +193,41 @@
 	async function downloadQRCode() {
 		const opts = renderOptions(pngScale);
 		if (!opts) return;
-		if (format === 'svg') {
-			const svg = buildSvg({
-				...opts,
-				logo: logo && { href: logo.dataUrl, width: logo.bitmap.width, height: logo.bitmap.height },
-				titleWidth: measureTitle(opts.title)
-			});
-			downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), exportFilename('svg', size));
-		} else {
-			// The PNG is only encoded here, not on every change.
-			const png = await canvasToPng(renderCanvas(opts));
-			downloadBlob(png, exportFilename('png', size * pngScale));
+		try {
+			let filename: string;
+			if (format === 'svg') {
+				const svg = buildSvg({
+					...opts,
+					logo: logo && { href: logo.dataUrl, width: logo.bitmap.width, height: logo.bitmap.height },
+					titleWidth: measureTitle(opts.title)
+				});
+				filename = exportFilename('svg', size);
+				downloadBlob(new Blob([svg], { type: 'image/svg+xml' }), filename);
+			} else {
+				// The PNG is only encoded here, not on every change.
+				const png = await canvasToPng(renderCanvas(opts));
+				filename = exportFilename('png', size * pngScale);
+				downloadBlob(png, filename);
+			}
+			showActionStatus(true, `Exported ${filename}`);
+		} catch (error) {
+			showActionStatus(false, `Couldn't export: ${error instanceof Error ? error.message : error}`);
 		}
 	}
 
-	function showCopyStatus(ok: boolean, message: string) {
-		copyStatus = { ok, message };
-		clearTimeout(copyStatusTimer);
-		copyStatusTimer = setTimeout(() => (copyStatus = null), 3000);
+	function showActionStatus(ok: boolean, message: string) {
+		actionStatus = { ok, message };
+		clearTimeout(actionStatusTimer);
+		actionStatusTimer = setTimeout(() => (actionStatus = null), 3000);
 	}
 
 	function copyImage() {
 		const opts = renderOptions(pngScale);
 		if (!opts) return;
 		copyPng(canvasToPng(renderCanvas(opts))).then(
-			() => showCopyStatus(true, 'Copied to the clipboard'),
+			() => showActionStatus(true, 'Copied to the clipboard'),
 			(error) =>
-				showCopyStatus(false, `Couldn't copy: ${error instanceof Error ? error.message : error}`)
+				showActionStatus(false, `Couldn't copy: ${error instanceof Error ? error.message : error}`)
 		);
 	}
 
@@ -264,7 +272,7 @@
 				(p) => (batchProgress = p)
 			);
 			downloadBlob(zip, `qrding-${selectedModeValue}-${batchItems.length}-codes.zip`);
-			const message = `Downloaded ${batchItems.length} ${format.toUpperCase()} files.${failureSummary(failures)}`;
+			const message = `Exported ${batchItems.length} ${format.toUpperCase()} files.${failureSummary(failures)}`;
 			batchReport = { message, failures };
 			return message;
 		});
@@ -341,7 +349,7 @@
 	class="relative flex min-h-screen items-center justify-center bg-gray-900 px-4 pt-20 pb-4 md:px-6 md:pb-6 lg:px-8 lg:pb-8 print:hidden"
 >
 	<!-- In the top padding and scrolls with the page, so it never covers the controls -->
-	<div class="absolute top-0 left-0 p-4 font-[Megrim] text-4xl text-blue-400">QRding</div>
+	<h1 class="absolute top-0 left-0 p-4 font-[Megrim] text-4xl text-blue-400">QRding</h1>
 	<div class="w-full max-w-[1080px] bg-gray-900">
 		<div class="flex flex-col items-center gap-8 lg:flex-row lg:items-center">
 			<!-- Left Section -->
@@ -444,7 +452,7 @@
 				<!-- Size Slider -->
 				<div class="space-y-3">
 					<div class="flex items-center justify-between">
-						<span id="sizeLabel" class="text-sm font-medium text-blue-600">Image Size</span>
+						<span id="sizeLabel" class="text-sm font-medium text-blue-500">Image Size</span>
 						<span class="text-sm font-medium text-blue-400">{size}px</span>
 					</div>
 					<Slider.Root
@@ -471,7 +479,7 @@
 				<!-- Error Correction Level Slider -->
 				<div class="space-y-3">
 					<div class="flex items-center justify-between">
-						<span id="errorCorrectionLabel" class="text-sm font-medium text-blue-600"
+						<span id="errorCorrectionLabel" class="text-sm font-medium text-blue-500"
 							>Error Correction</span
 						>
 						<span class="text-sm font-medium text-blue-400"
@@ -549,27 +557,25 @@
 					aria-label="Generated QR Code{preview.title.trim()
 						? ' with title: ' + preview.title.trim()
 						: ''}{logo ? ' and logo' : ''}"
-					style="width: {imageSize.width + 32}px; height: {imageSize.height + 32}px;"
+					style="width: 100%; max-width: {imageSize.width + 32}px; aspect-ratio: {imageSize.width +
+						32} / {imageSize.height + 32};"
 				>
-					<canvas
-						bind:this={canvas}
-						class="block"
-						style="width: {imageSize.width}px; height: {imageSize.height}px;"
-					></canvas>
+					<canvas bind:this={canvas} class="block" style="width: 100%; height: auto;"></canvas>
 				</div>
 				{#if !preview.code}
 					<div
 						class="mx-auto flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-700 p-4 text-center"
-						style="width: {imageSize.width + 32}px; height: {imageSize.height + 32}px;"
+						style="width: 100%; max-width: {imageSize.width + 32}px; aspect-ratio: {imageSize.width +
+							32} / {imageSize.height + 32};"
 					>
 						{#if preview.error}
 							<p class="text-sm text-red-400">Can't create a QR code: {preview.error}</p>
-							<p class="text-xs text-gray-600">
+							<p class="text-xs text-gray-400">
 								Shorten the content or lower the error correction.
 							</p>
 						{:else}
 							<svg
-								class="mb-2 h-12 w-12 text-gray-600"
+								class="mb-2 h-12 w-12 text-gray-400"
 								fill="none"
 								viewBox="0 0 24 24"
 								stroke="currentColor"
@@ -578,12 +584,12 @@
 								<path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4" />
 								<path stroke-linecap="round" stroke-linejoin="round" d="M7 7h10v10H7z" />
 							</svg>
-							<p class="text-sm text-gray-500">
+							<p class="text-sm text-gray-400">
 								{isBatch
 									? 'The first code of the batch will appear here'
 									: 'QR code will appear here'}
 							</p>
-							<p class="text-xs text-gray-600">
+							<p class="text-xs text-gray-400">
 								{isBatch ? 'Add rows to generate codes' : 'Configure options to generate'}
 							</p>
 						{/if}
@@ -617,7 +623,7 @@
 						class="text-center text-xs"
 						class:text-green-400={scanCheck === 'ok'}
 						class:text-red-400={scanCheck === 'fail'}
-						class:text-gray-500={scanCheck === 'checking'}
+						class:text-gray-400={scanCheck === 'checking'}
 						data-testid="scan-check"
 						data-state={scanCheck}
 						aria-live="polite"
@@ -671,7 +677,7 @@
 									disabled={batchProgress !== null}
 									class="h-10 cursor-pointer rounded-lg bg-[#d9ff7a] px-6 text-sm font-medium text-gray-800 transition-colors hover:bg-[#bede68] data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50"
 								>
-									Download ZIP ({batchItems.length})
+									Export ZIP ({batchItems.length})
 								</Button.Root>
 								<Button.Root
 									onclick={printSheet}
@@ -717,7 +723,7 @@
 									onclick={downloadQRCode}
 									class="h-10 cursor-pointer rounded-lg bg-[#d9ff7a] px-6 text-sm font-medium text-gray-800 transition-colors hover:bg-[#bede68] data-[disabled]:cursor-not-allowed data-[disabled]:opacity-50"
 								>
-									Download {format.toUpperCase()}
+									Export {format.toUpperCase()}
 								</Button.Root>
 								{#if canCopy}
 									<Button.Root
@@ -730,11 +736,11 @@
 							</div>
 							<p
 								class="min-h-4 text-center text-xs"
-								class:text-green-400={copyStatus?.ok}
-								class:text-red-400={copyStatus && !copyStatus.ok}
+								class:text-green-400={actionStatus?.ok}
+								class:text-red-400={actionStatus && !actionStatus.ok}
 								aria-live="polite"
 							>
-								{copyStatus?.message ?? ''}
+								{actionStatus?.message ?? ''}
 							</p>
 						{/if}
 					</div>

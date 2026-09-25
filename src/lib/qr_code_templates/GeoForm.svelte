@@ -87,6 +87,6 @@
 			placeholder="e.g., Main entrance"
 			class="h-10 w-full rounded-md border border-black bg-gray-700 px-4 text-sm text-gray-100 shadow-md focus:ring-2 focus:ring-black focus:outline-none"
 		/>
-		<p class="mt-1 text-xs text-gray-600">Shown as the pin name in Android map apps.</p>
+		<p class="mt-1 text-xs text-gray-400">Shown as the pin name in Android map apps.</p>
 	</div>
 </div>

@@ -29,7 +29,7 @@ test('shows the columns, a template and per-row errors', async ({ page }) => {
 	await expect(page.getByText('url, caption, filename')).toBeVisible();
 	const [template] = await Promise.all([
 		page.waitForEvent('download'),
-		page.getByRole('button', { name: 'Download CSV template' }).click()
+		page.getByRole('button', { name: 'Export CSV template' }).click()
 	]);
 	expect(template.suggestedFilename()).toBe('qrding-url-template.csv');
 	expect(new TextDecoder().decode(await downloadBytes(template))).toBe(
@@ -51,11 +51,11 @@ test('downloads a ZIP of numbered, scannable PNGs at the chosen size', async ({ 
 	await page.locator('#pngScale').selectOption({ label: '2× · 512 px · 43 mm at 300 DPI' });
 	const [download] = await Promise.all([
 		page.waitForEvent('download'),
-		page.getByRole('button', { name: 'Download ZIP (3)' }).click()
+		page.getByRole('button', { name: 'Export ZIP (3)' }).click()
 	]);
 	expect(download.suggestedFilename()).toBe('qrding-url-3-codes.zip');
 	await expect(page.getByTestId('batch-status')).toHaveText(
-		'Downloaded 3 PNG files. All passed the scan check.'
+		'Exported 3 PNG files. All passed the scan check.'
 	);
 
 	const files = unzipSync(await downloadBytes(download));
@@ -77,7 +77,7 @@ test('downloads SVGs when SVG is selected', async ({ page }) => {
 	await page.getByText('SVG (vector)').click();
 	const [download] = await Promise.all([
 		page.waitForEvent('download'),
-		page.getByRole('button', { name: 'Download ZIP (3)' }).click()
+		page.getByRole('button', { name: 'Export ZIP (3)' }).click()
 	]);
 	const files = unzipSync(await downloadBytes(download));
 	expect(Object.keys(files).sort()).toEqual(['1-door.svg', '2-link-examplecom.svg', '3-Back.svg']);

@@ -8,6 +8,10 @@ node_modules
 /.svelte-kit
 /build
 
+# Tauri (also ignored by src-tauri/.gitignore; listed here too so tools that only
+# read the root .gitignore, like eslint's includeIgnoreFile, skip it as well)
+/src-tauri/target
+
 # OS
 .DS_Store
 Thumbs.db

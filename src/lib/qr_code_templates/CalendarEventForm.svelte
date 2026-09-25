@@ -6,7 +6,7 @@
 
 <div class="space-y-4">
 	<div>
-		<label for="eventTitle" class="mb-2 block text-sm font-medium text-blue-600">Event Title*</label
+		<label for="eventTitle" class="mb-2 block text-sm font-medium text-blue-500">Event Title*</label
 		>
 		<input
 			type="text"
@@ -18,7 +18,7 @@
 		/>
 	</div>
 	<div>
-		<label for="eventDTStart" class="mb-2 block text-sm font-medium text-blue-600"
+		<label for="eventDTStart" class="mb-2 block text-sm font-medium text-blue-500"
 			>Start Date & Time*</label
 		>
 		<input
@@ -30,7 +30,7 @@
 		/>
 	</div>
 	<div>
-		<label for="eventDTEnd" class="mb-2 block text-sm font-medium text-blue-600"
+		<label for="eventDTEnd" class="mb-2 block text-sm font-medium text-blue-500"
 			>End Date & Time*</label
 		>
 		<input
@@ -42,7 +42,7 @@
 		/>
 	</div>
 	<div>
-		<label for="eventLocation" class="mb-2 block text-sm font-medium text-blue-600">Location</label>
+		<label for="eventLocation" class="mb-2 block text-sm font-medium text-blue-500">Location</label>
 		<input
 			type="text"
 			id="eventLocation"
@@ -54,5 +54,5 @@
 	{#if endsBeforeStart(fields)}
 		<p class="text-xs text-red-400">The end must be after the start.</p>
 	{/if}
-	<p class="text-xs text-gray-600">* Mandatory fields. Browser will prompt for YYYY-MM-DDTHH:MM.</p>
+	<p class="text-xs text-gray-400">* Mandatory fields. Browser will prompt for YYYY-MM-DDTHH:MM.</p>
 </div>

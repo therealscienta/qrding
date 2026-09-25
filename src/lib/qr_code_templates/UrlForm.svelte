@@ -21,6 +21,6 @@
 	{#if invalid}
 		<p class="text-xs text-red-400">That doesn't look like a valid URL.</p>
 	{:else}
-		<p class="text-xs text-gray-600">https:// is added if you leave it out.</p>
+		<p class="text-xs text-gray-400">https:// is added if you leave it out.</p>
 	{/if}
 </div>

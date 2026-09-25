@@ -21,11 +21,15 @@ npm test               # vitest run (unit tests)
 npx vitest run -t 'encodeWifi'   # run a single describe/test by name
 npm run test:e2e       # Playwright browser tests (builds + previews on :4173)
 npx playwright test -g 'Location'   # a single e2e test by name
+npm run tauri dev      # desktop app in dev mode (needs Rust + platform build tools)
+npm run tauri build    # desktop installer via adapter-static -> ./build, then src-tauri
 ```
 
 Unit tests (Vitest) live next to the code as `src/**/*.test.ts` and cover the pure modules in `src/lib`. Browser tests (Playwright, `tests/*.spec.ts`) drive every template and decode the canvas with jsQR to assert the exact payload; add one for each new template. First run needs `npx playwright install chromium`. Lint, check, unit and e2e tests pass with zero errors and warnings, and CI (`.github/workflows/ci.yml`) runs them plus a build and a Docker build on every push to `main` and on every PR. Keep them passing.
 
 Docker: `docker build -t qrding .` builds a multi-stage `node:24-alpine` image. The runtime stage contains only `build/` and `package.json`, strips npm/yarn/corepack (the base image's reported CVEs are in their bundled deps), runs as `node` and exposes 3000. `docker-compose.yaml` pulls `ghcr.io/rishikanthc/qrding:latest`; uncomment `build: .` to build locally.
+
+Desktop (Tauri): the app has no server code, so `src-tauri/tauri.conf.json` builds it with `adapter-static` instead — `beforeBuildCommand` runs `npm run build:tauri`, which sets `TAURI_BUILD=true` so `svelte.config.js` swaps the adapter (plain `npm run build` / Docker still use `adapter-node`, untouched). `npm run tauri build` produces both a `.exe`/`.msi` installer (in `src-tauri/target/release/bundle/`) and the raw `qrding.exe` binary it wraps, which already runs standalone (WebView2 is statically linked; nothing else needs installing on a current Windows machine). Building needs a Rust toolchain and, on Windows, the MSVC Build Tools. `.github/workflows/release-desktop.yml` only ships the raw exe — `tauri build --no-bundle` skips NSIS/MSI entirely — renamed to `QRding-<tag>-x64-portable.exe` and attached to a draft GitHub Release via `gh release create`. It's triggered by pushing a `v*` tag or manually (`workflow_dispatch`), not on every push/PR like `ci.yml`, since a from-scratch Rust compile on a Windows runner is slow.
 
 All packages are `devDependencies` on purpose. adapter-node bundles devDependencies into `build/` and leaves `dependencies` as runtime imports, so an empty `dependencies` is what lets the image ship without `node_modules`. Add new packages with `npm i -D`.
 

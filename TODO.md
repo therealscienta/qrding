@@ -6,16 +6,8 @@ Not planned: features that store information, such as remembering settings or in
 
 ## Bugs
 
-- [ ] **1. The preview is too wide for phones.** The preview box has a fixed inline pixel width (image size + 32 px) in `src/routes/+page.svelte`. On a 390 px-wide phone, image sizes of 352 px and up make the page scroll sideways. Scale the preview down to the available width (for example `max-width: 100%` with `aspect-ratio`, and the canvas at `width: 100%; height: auto`). The exported file size must not change.
-- [ ] **2. Some text is hard to read.** On the black background (`gray-900` is overridden to black in `src/app.css`), these colours are below the 4.5:1 contrast that WCAG AA requires (computed from the theme's OKLCH values):
-
-  | Colour          | Used for                                             | Contrast |
-  | --------------- | ---------------------------------------------------- | -------- |
-  | `text-gray-600` | 9 hint texts, e.g. "\* SSID is required…"            | 2.7:1    |
-  | `text-gray-500` | "QR code will appear here", "Checking scannability…" | 4.2:1    |
-  | `text-blue-600` | 6 labels, e.g. "Image Size", "Error Correction"      | 3.3:1    |
-
-  Change those colours and add an automated accessibility check (`@axe-core/playwright`) to the e2e tests. It would also flag that the "QRding" logo is a plain `div`; make it the page's `<h1>`.
+- [x] **1. The preview is too wide for phones.** Fixed: the preview and placeholder boxes now use `width: 100%; max-width: {imageSize.width + 32}px; aspect-ratio: ...` instead of a fixed inline pixel width, and the canvas uses `width: 100%; height: auto` (its intrinsic ratio, from the `canvas.width`/`height` attributes `drawQrCode` sets, does the rest). Exports are unaffected since they render to a separate offscreen canvas. Regression test: `tests/app.spec.ts` › "the preview fits a 390px-wide phone even at the largest image size".
+- [x] **2. Some text is hard to read.** Fixed: `text-gray-600`/`text-gray-500` → `text-gray-400`, `text-blue-600` → `text-blue-500` (both already used elsewhere for the same role — e.g. every other form label was already `text-blue-500`; the flagged spots were the inconsistent ones). The "QRding" logo is now the page's `<h1>`. Added `@axe-core/playwright` with a WCAG 2 A/AA check in `tests/a11y.spec.ts`, run against both the placeholder and a rendered code.
 
 ## Features
 

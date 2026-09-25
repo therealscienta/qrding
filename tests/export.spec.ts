@@ -15,7 +15,7 @@ test('SVG export is a scannable vector image, also scaled up', async ({ page }) 
 	await expect(page.locator('#pngScale')).toHaveCount(0);
 	const [download] = await Promise.all([
 		page.waitForEvent('download'),
-		page.getByRole('button', { name: 'Download SVG' }).click()
+		page.getByRole('button', { name: 'Export SVG' }).click()
 	]);
 	expect(download.suggestedFilename()).toMatch(/^Guest__friends-256-M-\d+\.svg$/);
 	const svg = await downloadBytes(download);
@@ -30,7 +30,7 @@ test('high-resolution PNG has the chosen width and 300 DPI', async ({ page }) =>
 	await page.locator('#pngScale').selectOption({ label: '4× · 1024 px · 87 mm at 300 DPI' });
 	const [download] = await Promise.all([
 		page.waitForEvent('download'),
-		page.getByRole('button', { name: 'Download PNG' }).click()
+		page.getByRole('button', { name: 'Export PNG' }).click()
 	]);
 	expect(download.suggestedFilename()).toMatch(/^wifi-Home-1024-M-\d+\.png$/);
 	const png = await downloadBytes(download);
@@ -48,7 +48,7 @@ test('logos are embedded in PNG and SVG exports, including SVG logos', async ({ 
 
 	const [png] = await Promise.all([
 		page.waitForEvent('download'),
-		page.getByRole('button', { name: 'Download PNG' }).click()
+		page.getByRole('button', { name: 'Export PNG' }).click()
 	]);
 	expect(png.suggestedFilename()).toMatch(/-logo-\d+\.png$/);
 	expect((await decodeImage(page, await downloadBytes(png), 'image/png')).payload).toBe(WIFI);
@@ -56,11 +56,21 @@ test('logos are embedded in PNG and SVG exports, including SVG logos', async ({ 
 	await page.getByText('SVG (vector)').click();
 	const [svg] = await Promise.all([
 		page.waitForEvent('download'),
-		page.getByRole('button', { name: 'Download SVG' }).click()
+		page.getByRole('button', { name: 'Export SVG' }).click()
 	]);
 	const svgBytes = await downloadBytes(svg);
 	expect(new TextDecoder().decode(svgBytes)).toContain('xlink:href="data:image/svg+xml;base64,');
 	expect((await decodeImage(page, svgBytes, 'image/svg+xml', 2)).payload).toBe(WIFI);
+});
+
+test('export shows a confirmation so a silent, already-finished download is not mistaken for a no-op', async ({
+	page
+}) => {
+	const [download] = await Promise.all([
+		page.waitForEvent('download'),
+		page.getByRole('button', { name: 'Export PNG' }).click()
+	]);
+	await expect(page.getByText(`Exported ${download.suggestedFilename()}`)).toBeVisible();
 });
 
 test('copy puts a scannable PNG on the clipboard', async ({ page, context }) => {

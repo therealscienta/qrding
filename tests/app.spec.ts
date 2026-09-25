@@ -8,7 +8,7 @@ test.beforeEach(async ({ page }) => {
 test('has a title and shows the placeholder until there is input', async ({ page }) => {
 	await expect(page).toHaveTitle(/QRding/);
 	await expect(page.getByText('QR code will appear here')).toBeVisible();
-	await expect(page.getByRole('button', { name: 'Download PNG' })).toHaveCount(0);
+	await expect(page.getByRole('button', { name: 'Export PNG' })).toHaveCount(0);
 });
 
 test.describe('templates encode the expected payload', () => {
@@ -121,6 +121,23 @@ test('image includes a 4-module quiet zone and the requested width', async ({ pa
 	expect(edges.firstDark).toBeGreaterThanOrEqual(Math.floor((4 * 256) / 37));
 });
 
+test('the preview fits a 390px-wide phone even at the largest image size', async ({ page }) => {
+	await page.setViewportSize({ width: 390, height: 844 });
+	await page.fill('#wifiSSID', 'Home');
+	await decodedPayload(page);
+	const slider = page.locator('[role="slider"]').first();
+	await slider.focus();
+	await slider.press('End'); // drag to the maximum, 512px
+	const sizeLabel = await page.evaluate(
+		() => document.getElementById('sizeLabel')!.nextElementSibling!.textContent
+	);
+	expect(sizeLabel).toBe('512px');
+	const overflowsHorizontally = await page.evaluate(
+		() => document.documentElement.scrollWidth > document.documentElement.clientWidth
+	);
+	expect(overflowsHorizontally).toBe(false);
+});
+
 test('color picker stays mounted while changing color, and warns on inverted colors', async ({
 	page
 }) => {
@@ -153,7 +170,7 @@ test('download uses a sanitized filename', async ({ page }) => {
 	await decodedPayload(page);
 	const [download] = await Promise.all([
 		page.waitForEvent('download'),
-		page.getByRole('button', { name: 'Download PNG' }).click()
+		page.getByRole('button', { name: 'Export PNG' }).click()
 	]);
 	expect(download.suggestedFilename()).toMatch(/^wifi-My_Network-256-M-\d+\.png$/);
 });

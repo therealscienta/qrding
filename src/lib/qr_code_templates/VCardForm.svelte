@@ -5,7 +5,7 @@
 </script>
 
 <div class="space-y-4">
-	<p class="text-xs text-gray-600">Enter contact details. Full Name is required.</p>
+	<p class="text-xs text-gray-400">Enter contact details. Full Name is required.</p>
 	<div>
 		<label for="vCardName" class="mb-2 block text-sm font-medium text-blue-500">Full Name*</label>
 		<input

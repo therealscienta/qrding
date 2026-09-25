@@ -1,0 +1,50 @@
+name: Release Desktop App
+
+# Builds the Windows Tauri app (adapter-static, see svelte.config.js) as a single portable
+# .exe -- no NSIS/MSI installer, so there's nothing to install: download and run. Doesn't run
+# on every push/PR like ci.yml: a full Rust compile on windows-latest is slow, so it's tag- or
+# manually-triggered instead.
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 24
+          cache: npm
+
+      - uses: dtolnay/rust-toolchain@stable
+
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: src-tauri
+
+      - run: npm ci
+
+      # beforeBuildCommand (npm run build:tauri) still runs; --no-bundle only skips NSIS/MSI.
+      - run: npm run tauri -- build --no-bundle
+
+      - name: Name the portable executable after the release tag
+        shell: pwsh
+        run: |
+          Copy-Item src-tauri/target/release/qrding.exe "QRding-${{ github.ref_name }}-x64-portable.exe"
+
+      - name: Publish to the GitHub Release
+        shell: bash
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh release create "${{ github.ref_name }}" "QRding-${{ github.ref_name }}-x64-portable.exe" \
+            --title "QRding ${{ github.ref_name }}" \
+            --notes "Portable Windows build of QRding. Download the .exe and run it -- no install required." \
+            --draft

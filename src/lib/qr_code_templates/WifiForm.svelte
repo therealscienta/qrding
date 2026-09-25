@@ -93,5 +93,5 @@
 		/>
 		<label for="wifiHidden" class="text-sm font-medium text-gray-100">Hidden Network</label>
 	</div>
-	<p class="text-xs text-gray-600">* SSID is required to generate a functional Wi-Fi QR code.</p>
+	<p class="text-xs text-gray-400">* SSID is required to generate a functional Wi-Fi QR code.</p>
 </div>
