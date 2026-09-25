@@ -1,12 +1,12 @@
 name: Release Desktop App
 
 # Builds the Windows Tauri app (adapter-static, see svelte.config.js) as a single portable
-# .exe -- no NSIS/MSI installer, so there's nothing to install: download and run. Doesn't run
-# on every push/PR like ci.yml: a full Rust compile on windows-latest is slow, so it's tag- or
-# manually-triggered instead.
+# .exe -- no NSIS/MSI installer, so there's nothing to install: download and run. Publishes it
+# to a rolling "latest" GitHub Release (a pre-release, recreated on every push) rather than a
+# versioned one, so main always has a current desktop build available.
 on:
   push:
-    tags: ['v*']
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -34,17 +34,19 @@ jobs:
       # beforeBuildCommand (npm run build:tauri) still runs; --no-bundle only skips NSIS/MSI.
       - run: npm run tauri -- build --no-bundle
 
-      - name: Name the portable executable after the release tag
+      - name: Name the portable executable
         shell: pwsh
         run: |
-          Copy-Item src-tauri/target/release/qrding.exe "QRding-${{ github.ref_name }}-x64-portable.exe"
+          Copy-Item src-tauri/target/release/qrding.exe "QRding-x64-portable.exe"
 
-      - name: Publish to the GitHub Release
+      - name: Publish the rolling "latest" release
         shell: bash
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          gh release create "${{ github.ref_name }}" "QRding-${{ github.ref_name }}-x64-portable.exe" \
-            --title "QRding ${{ github.ref_name }}" \
-            --notes "Portable Windows build of QRding. Download the .exe and run it -- no install required." \
-            --draft
+          gh release delete latest --yes --cleanup-tag || true
+          gh release create latest "QRding-x64-portable.exe" \
+            --title "QRding (latest main build)" \
+            --notes "Automatic portable build of the latest main branch ($GITHUB_SHA). Not a stable/versioned release -- download the .exe and run it, no install required." \
+            --target "$GITHUB_SHA" \
+            --prerelease
