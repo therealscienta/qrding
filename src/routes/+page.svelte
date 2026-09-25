@@ -198,7 +198,11 @@
 			if (format === 'svg') {
 				const svg = buildSvg({
 					...opts,
-					logo: logo && { href: logo.dataUrl, width: logo.bitmap.width, height: logo.bitmap.height },
+					logo: logo && {
+						href: logo.dataUrl,
+						width: logo.bitmap.width,
+						height: logo.bitmap.height
+					},
 					titleWidth: measureTitle(opts.title)
 				});
 				filename = exportFilename('svg', size);
@@ -565,8 +569,8 @@
 				{#if !preview.code}
 					<div
 						class="mx-auto flex flex-col items-center justify-center rounded-lg border border-dashed border-gray-700 p-4 text-center"
-						style="width: 100%; max-width: {imageSize.width + 32}px; aspect-ratio: {imageSize.width +
-							32} / {imageSize.height + 32};"
+						style="width: 100%; max-width: {imageSize.width +
+							32}px; aspect-ratio: {imageSize.width + 32} / {imageSize.height + 32};"
 					>
 						{#if preview.error}
 							<p class="text-sm text-red-400">Can't create a QR code: {preview.error}</p>
