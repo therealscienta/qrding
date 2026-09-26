@@ -2,6 +2,20 @@
 
 QRding is a simple self-hosted QR code generator. It includes templates for creating QR codes for sharing WiFi credentials, contact cards, calendar events, links, SMS, phone numbers, email and map locations. In the long-term the goal is to build an automation system around QR codes which allows you to trigger custom actions, track actions or habits and send notifications when a scan event is not triggered.
 
+## About this fork
+
+This is a fork of [rishikanthc/qrding](https://github.com/rishikanthc/qrding). Compared to the original, it adds:
+
+- **A Windows desktop app.** A portable `QRding-x64-portable.exe` (no installer) is built with Tauri and published on every push to `main`: [download the latest build](https://github.com/therealscienta/qrding/releases/download/latest/QRding-x64-portable.exe). It isn't code-signed yet, so Windows SmartScreen will warn when you run it, and PCs with Smart App Control turned on will block it.
+- **More templates.** Link (URL), SMS, phone call, email and map location, on top of the original Wi-Fi, contact card, calendar event and text.
+- **Batch mode.** Generate many codes from a CSV file (upload or paste), then export them as a ZIP or print them on one sheet with a chosen code width.
+- **More export options.** PNG at 1×–8× tagged 300 DPI for print, vector SVG, and copy to the clipboard. The app confirms each export on screen.
+- **A scan check.** Every generated code is read back with a QR decoder before you use it, and batch exports report any rows that fail.
+- **Bug fixes.** The color picker no longer closes while you pick a color, a cleared logo no longer lingers, download filenames are no longer garbled, and calendar/vCard escaping is fixed. The preview also fits on phones.
+- **Warnings.** The app warns about inverted or low-contrast colors, about low error correction when a logo is used, and when the content is too large for a QR code.
+- **Accessibility.** Text contrast meets WCAG AA, and an automated accessibility check runs in CI.
+- **A modernized stack.** SvelteKit 2.70, Svelte 5, Vite 8, Tailwind 4 and TypeScript everywhere. The unused Lucia/Drizzle demo code, which broke builds without a database, is removed. There are unit and browser tests, a CI workflow, and a smaller, hardened Docker image (Node 24, running as a non-root user).
+
 ## Features
 
 - QR code for sharing WiFi credentials
@@ -26,7 +40,7 @@ A live version is available at https://qrding.app
 
 ## Installation
 
-QRding is available as a docker image and can be deployed with the docker-compose provided below.
+QRding is available as a docker image and can be deployed with the docker-compose provided below. This fork doesn't publish its own image yet: the image below is the original project's, so to run this fork's version, build it locally with `docker build -t qrding .` (or uncomment `build: .` in `docker-compose.yaml`).
 
 ```compose
 services:
